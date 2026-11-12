@@ -76,7 +76,7 @@ h2{font-family:var(--display);font-size:16px;font-weight:700;margin-bottom:12px}
 
 <div class="wrap detail">
   <div class="link">
-    <p id="msg">Readings are unknown until the sensor circuit is linked. The sensor tests the air every 15 seconds, and this page updates after each test.</p>
+    <p id="msg">Readings are unknown until the sensor circuit is linked. The sensor tests the air every 30 seconds, and this page updates after each test.</p>
     <button id="preview" type="button">Preview sample readings</button>
   </div>
   <div class="stats">
@@ -93,7 +93,7 @@ h2{font-family:var(--display);font-size:16px;font-weight:700;margin-bottom:12px}
     <h2>Colour levels</h2>
     <ul class="levels" id="levels"></ul>
   </div>
-  <p class="note">Colours match the LED on the sensor. AQI is worked out from PM2.5 on the US scale. The PPD42NS is a low-cost sensor, so treat the figures as a guide.</p>
+  <p class="note">Colours match the LED on the sensor. AQI is calculated based on a custom scale matching the user's threshold.</p>
 </div>
 
 <script>
@@ -105,15 +105,15 @@ const READ_KEY   = '4BG0W8B2KC7AGMWM';   // Your Read API Key
 const $ = id => document.getElementById(id);
 const NAME = ['Healthy','Normal','Unhealthy','Very Unhealthy'];
 const LED  = ['Blue','Green','Yellow','Red'];
-const TEST_MS = 15000, OFFLINE_MS = 120000;
-const IDLE_MSG = 'Readings are unknown until the sensor circuit is linked. The sensor tests the air every 15 seconds, and this page updates after each test.';
+const TEST_MS = 30000, OFFLINE_MS = 120000;
+const IDLE_MSG = 'Readings are unknown until the sensor circuit is linked. The sensor tests the air every 30 seconds, and this page updates after each test.';
 
-// US EPA PM2.5 breakpoints: [pm low, pm high, aqi low, aqi high]
-const BP = [[0,9,0,50],[9.1,35.4,51,100],[35.5,55.4,101,150],[55.5,125.4,151,200],[125.5,225.4,201,300],[225.5,500,301,500]];
+// Custom AQI Mapping to match the Arduino logic
 function aqiFrom(pm){
-  pm = Math.floor(pm*10)/10;
-  for (const b of BP) if (pm <= b[1]) return Math.round((b[3]-b[2])/(b[1]-b[0])*(pm-b[0])+b[2]);
-  return 500;
+  if (pm <= 50) return Math.round(pm);
+  if (pm <= 100) return Math.round(50 + (pm - 50) * 1.8);
+  if (pm <= 200) return Math.round(140 + (pm - 100) * 1.6);
+  return Math.round(300 + (pm - 200) * 0.67);
 }
 
 $('levels').innerHTML = NAME.map((n,i) =>
@@ -176,7 +176,6 @@ async function load(){
     }
     const f = feeds[feeds.length - 1];
     
-    // Read exactly the 4 fields matching the channel setup
     hist = feeds.slice(0, -1).reverse().map(x => ({
       t: new Date(x.created_at).getTime(), 
       pm: parseFloat(x.field1) || 0, 
@@ -185,11 +184,11 @@ async function load(){
     renderHist();
     
     const r = {
-      pm: parseFloat(f.field1) || 0,        // Field 1: PM2.5
-      raw: parseFloat(f.field1) || 0,       // Reusing Field 1 since Raw is not uploaded separately
-      lpo: parseFloat(f.field2) || 0,       // Field 2: LPO
-      pulses: parseInt(f.field3) || 0,      // Field 3: Pulses
-      grade: Math.min(3, Math.max(0, parseInt(f.field4) || 0)) // Field 4: Final Grade
+      pm: parseFloat(f.field1) || 0,        
+      raw: parseFloat(f.field1) || 0,       
+      lpo: parseFloat(f.field2) || 0,       
+      pulses: parseInt(f.field3) || 0,      
+      grade: Math.min(3, Math.max(0, parseInt(f.field4) || 0)) 
     };
     
     const when = new Date(f.created_at), age = Date.now() - when.getTime();
@@ -228,7 +227,7 @@ $('preview').onclick = () => {
   $('tag').hidden = !previewing;
   $('preview').textContent = previewing ? 'Stop preview' : 'Preview sample readings';
   if (previewing) {
-    $('msg').textContent = 'These are sample readings, not real air data. The level changes every 15 seconds so you can see all four colours.';
+    $('msg').textContent = 'These are sample readings, not real air data. The level changes every 30 seconds so you can see all four colours.';
     const n = Date.now();
     hist = [{t:n-60000,pm:22.4,grade:1},{t:n-180000,pm:46.8,grade:2},{t:n-420000,pm:88.3,grade:3},{t:n-900000,pm:6.2,grade:0}];
     step = -1; nextSample();
