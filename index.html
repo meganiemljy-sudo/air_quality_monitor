@@ -76,7 +76,7 @@ h2{font-family:var(--display);font-size:16px;font-weight:700;margin-bottom:12px}
 
 <div class="wrap detail">
   <div class="link">
-    <p id="msg">Readings are unknown until the sensor circuit is linked. The sensor tests the air every 30 seconds, and this page updates after each test.</p>
+    <p id="msg">Readings are unknown until the sensor circuit is linked. The sensor tests the air every 15 seconds, and this page updates after each test.</p>
     <button id="preview" type="button">Preview sample readings</button>
   </div>
   <div class="stats">
@@ -105,8 +105,8 @@ const READ_KEY   = '4BG0W8B2KC7AGMWM';   // Your Read API Key
 const $ = id => document.getElementById(id);
 const NAME = ['Healthy','Normal','Unhealthy','Very Unhealthy'];
 const LED  = ['Blue','Green','Yellow','Red'];
-const TEST_MS = 30000, OFFLINE_MS = 120000;
-const IDLE_MSG = 'Readings are unknown until the sensor circuit is linked. The sensor tests the air every 30 seconds, and this page updates after each test.';
+const TEST_MS = 15000, OFFLINE_MS = 120000;
+const IDLE_MSG = 'Readings are unknown until the sensor circuit is linked. The sensor tests the air every 15 seconds, and this page updates after each test.';
 
 // US EPA PM2.5 breakpoints: [pm low, pm high, aqi low, aqi high]
 const BP = [[0,9,0,50],[9.1,35.4,51,100],[35.5,55.4,101,150],[55.5,125.4,151,200],[125.5,225.4,201,300],[225.5,500,301,500]];
@@ -228,7 +228,7 @@ $('preview').onclick = () => {
   $('tag').hidden = !previewing;
   $('preview').textContent = previewing ? 'Stop preview' : 'Preview sample readings';
   if (previewing) {
-    $('msg').textContent = 'These are sample readings, not real air data. The level changes every 30 seconds so you can see all four colours.';
+    $('msg').textContent = 'These are sample readings, not real air data. The level changes every 15 seconds so you can see all four colours.';
     const n = Date.now();
     hist = [{t:n-60000,pm:22.4,grade:1},{t:n-180000,pm:46.8,grade:2},{t:n-420000,pm:88.3,grade:3},{t:n-900000,pm:6.2,grade:0}];
     step = -1; nextSample();
