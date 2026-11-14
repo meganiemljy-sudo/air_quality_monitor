@@ -9,7 +9,7 @@
   --idle:#8f9bb8; --idle-ink:#0b1020;
   --l0:#1e6bff; --l0-ink:#ffffff;
   --l1:#22c55e; --l1-ink:#05260f;
-  --l2:#ffa000; --l2-ink:#2b1a00;
+  --l2:#ffcc00; --l2-ink:#2b1a00;
   --l3:#ff2d2d; --l3-ink:#ffffff;
   --display:"Space Grotesk","Avenir Next","Segoe UI",system-ui,sans-serif;
   --body:"Inter","Segoe UI",system-ui,sans-serif;
@@ -20,7 +20,7 @@
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px;line-height:1.5}
-p,h1,h2,ul{margin:0}
+p,h1,h2,h3,ul{margin:0}
 [hidden]{display:none!important}
 .wrap{max-width:560px;margin:0 auto;padding-left:20px;padding-right:20px}
 .hero{--c:var(--idle);--ink:var(--idle-ink);background:var(--c);color:var(--ink);transition:background .8s,color .8s}
@@ -39,8 +39,10 @@ h1{font-family:var(--display);font-size:16px;font-weight:500}
 .next{display:flex;justify-content:space-between;margin-top:10px;font-size:15px}
 .next b{font-variant-numeric:tabular-nums}
 .detail{display:grid;gap:28px;padding-block:26px 40px}
-.link{display:grid;gap:12px}
+.link{display:grid;gap:10px}
 .link p{color:var(--muted);font-size:15px;max-width:60ch}
+.now-line{font-size:15px;color:var(--muted)}
+.now-line b{font-family:var(--display);font-variant-numeric:tabular-nums;color:var(--fg)}
 button{font:inherit;font-weight:600;font-size:15px;justify-self:start;border:0;border-radius:10px;padding:11px 16px;background:var(--btn);color:var(--btn-ink);cursor:pointer}
 button:focus-visible{outline:3px solid var(--l0);outline-offset:3px}
 .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
@@ -55,196 +57,595 @@ h2{font-family:var(--display);font-size:16px;font-weight:700;margin-bottom:12px}
 .levels li.on{font-weight:600}
 .hist{list-style:none;padding:0;font-size:15px}
 .hist li{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--line)}
-.hist .t{flex:0 0 7em;color:var(--muted);font-variant-numeric:tabular-nums}
+.hist .t{flex:0 0 9em;color:var(--muted);font-variant-numeric:tabular-nums}
 .hist b{font-family:var(--display);font-variant-numeric:tabular-nums}
 .hist .s{margin-left:auto;display:flex;align-items:center;gap:8px;text-align:right}
 .hist i{width:12px;height:12px;border-radius:50%;flex:none}
 .note{font-size:13px;color:var(--muted);max-width:60ch}
+.charts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+@media (max-width:480px){.charts{grid-template-columns:1fr}}
+.chart-box{border-top:2px solid var(--line);padding-top:8px;min-width:0;height:320px;display:flex;flex-direction:column}
+.chart-box h3{font-family:var(--display);font-size:13px;font-weight:600;margin:0 0 6px 0;color:var(--muted)}
+.chart-box canvas{display:block;max-width:100%;flex:1;min-height:0}
+
+/* Preview overlay */
+.preview-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:20px;z-index:100}
+.preview-panel{background:var(--bg);color:var(--fg);border-radius:16px;padding:22px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+.preview-panel h3{font-family:var(--display);font-size:18px;margin-bottom:16px}
+.preview-buttons{display:grid;gap:8px;margin-bottom:16px}
+.preview-buttons button{width:100%;justify-self:stretch}
+.preview-close{display:block;width:100%;background:transparent;color:inherit;border:1.5px solid currentColor;border-radius:10px;padding:10px 16px;font:inherit;font-weight:600;cursor:pointer;opacity:.85}
+.preview-hero{--c:var(--idle);--ink:var(--idle-ink);background:var(--c);color:var(--ink);border-radius:16px;padding:28px 24px;width:100%;max-width:500px;box-shadow:0 20px 60px rgba(0,0,0,.4);transition:background .8s,color .8s}
+.preview-hero .big b{font-size:clamp(64px,22vw,120px)}
+.preview-hero .preview-close{margin-top:24px;opacity:1}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style></head><body>
 
 <section class="hero" id="hero">
   <div class="wrap">
-    <div class="top"><h1>Air Quality Monitor</h1><span class="tag" id="tag" hidden>Sample data</span></div>
+    <div class="top"><h1>Air Quality Monitor</h1></div>
     <p class="state" id="state">Sensor not connected</p>
     <div class="big"><b id="aqi">--</b><span>AQI</span></div>
     <p class="ug"><span id="ug">--</span><small>µg/m³ PM2.5</small></p>
     <div class="bar"><i id="bar"></i></div>
-    <p class="next"><span>Next reading in</span><b id="cd">--:--</b></p>
+    <p class="next"><span id="cdLabel">Status</span><b id="cd">--:--</b></p>
   </div>
 </section>
 
 <div class="wrap detail">
   <div class="link">
-    <p id="msg">Readings are unknown until the sensor circuit is linked. The sensor tests the air every 30 seconds, and this page updates after each test.</p>
+    <p class="now-line">Current time: <b id="now">--:--:--</b></p>
+    <p id="msg">Waiting for the sensor to connect.</p>
     <button id="preview" type="button">Preview sample readings</button>
   </div>
   <div class="stats">
     <div><b id="lpo">--</b><small>LPO</small></div>
-    <div><b id="pulses">--</b><small>Pulses / 30 s</small></div>
+    <div><b id="pulses">--</b><small>Pulses</small></div>
     <div><b id="raw">--</b><small>PM2.5 µg/m³</small></div>
+  </div>
+  <div>
+    <div class="charts">
+      <div class="chart-box"><h3>AQI</h3><canvas id="chartAqi"></canvas></div>
+      <div class="chart-box"><h3>PM2.5 (µg/m³)</h3><canvas id="chartPm25"></canvas></div>
+      <div class="chart-box"><h3>LPO (%)</h3><canvas id="chartLpo"></canvas></div>
+      <div class="chart-box"><h3>Pulses</h3><canvas id="chartPulses"></canvas></div>
+    </div>
+    <p class="note">*Gaps means offline</p>
   </div>
   <div>
     <h2>Earlier readings</h2>
     <ul class="hist" id="hist"></ul>
-    <p class="note" id="histEmpty">Earlier readings are listed here once the sensor has sent some.</p>
+    <p class="note" id="histEmpty">Earlier readings appear here as the sensor sends them.</p>
   </div>
   <div>
     <h2>Colour levels</h2>
     <ul class="levels" id="levels"></ul>
   </div>
-  <p class="note">Colours match the LED on the sensor. AQI is calculated based on a custom scale matching the user's threshold.</p>
 </div>
 
+<div id="previewOverlay" class="preview-overlay" hidden>
+  <div class="preview-panel" id="previewChoice">
+    <h3>Choose a preview level</h3>
+    <div class="preview-buttons">
+      <button type="button" data-grade="0">Healthy</button>
+      <button type="button" data-grade="1">Normal</button>
+      <button type="button" data-grade="2">Unhealthy</button>
+      <button type="button" data-grade="3">Very Unhealthy</button>
+    </div>
+    <button type="button" class="preview-close" id="previewCancel">Cancel</button>
+  </div>
+  <div class="preview-hero" id="previewHero" hidden>
+    <div class="top"><h1>Air Quality Preview</h1><span class="tag">Sample data</span></div>
+    <p class="state" id="previewState">--</p>
+    <div class="big"><b id="previewAqi">--</b><span>AQI</span></div>
+    <p class="ug"><span id="previewPm">--</span><small>µg/m³ PM2.5</small></p>
+    <button type="button" class="preview-close" id="previewClose">Close</button>
+  </div>
+</div>
+
+<!-- 引入 Chart.js, date-fns 以及 Chart.js 的 date-fns 适配器 -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/date-fns@3.3.1/date-fns.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
 <script>
-/* ===== EDIT THESE TWO LINES when your ThingSpeak channel exists ===== */
-const CHANNEL_ID = '3575156';   // Your Channel ID
-const READ_KEY   = '4BG0W8B2KC7AGMWM';   // Your Read API Key
-/* =================================================================== */
+'use strict';
+
+/* ------------------------------------------------------------------ *
+ *  Configuration
+ * ------------------------------------------------------------------ */
+const CHANNEL_ID = '3575156';
+const READ_KEY   = '4BG0W8B2KC7AGMWM';
 
 const $ = id => document.getElementById(id);
-const NAME = ['Healthy','Normal','Unhealthy','Very Unhealthy'];
-const LED  = ['Blue','Green','Yellow','Red'];
-const TEST_MS = 30000, OFFLINE_MS = 120000;
-const IDLE_MSG = 'Readings are unknown until the sensor circuit is linked. The sensor tests the air every 30 seconds, and this page updates after each test.';
+const NAME = ['Healthy', 'Normal', 'Unhealthy', 'Very Unhealthy'];
+const LED  = ['Blue', 'Green', 'Yellow', 'Red'];
 
-// Custom AQI Mapping to match the Arduino logic
-function aqiFrom(pm){
-  if (pm <= 50) return Math.round(pm);
-  if (pm <= 100) return Math.round(50 + (pm - 50) * 1.8);
-  if (pm <= 200) return Math.round(140 + (pm - 100) * 1.6);
-  return Math.round(300 + (pm - 200) * 0.67);
+const SAMPLE_MS      = 30000;
+const LIVE_POLL_MS   = 15000;
+const HIST_POLL_MS   = 30000;
+const CHART_POLL_MS  = 300000;
+const HIST_BUCKET_MS = 300000;
+const OFFLINE_MS     = 180000;
+const WARMUP_TOTAL_MS = 60000;
+const FEED_RESULTS   = 8000;
+
+const GAP_MS = 3 * SAMPLE_MS;
+
+/* ------------------------------------------------------------------ *
+ *  Helpers
+ * ------------------------------------------------------------------ */
+function formatClock(dateStr) {
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return '--:--:--';
+  return String(d.getHours()).padStart(2,'0') + ':' +
+         String(d.getMinutes()).padStart(2,'0') + ':' +
+         String(d.getSeconds()).padStart(2,'0');
+}
+function formatCountdown(ms) {
+  const s = Math.max(0, Math.ceil(ms / 1000));
+  return String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0');
+}
+function formatAgo(ms) {
+  const s = Math.max(0, Math.round(ms / 1000));
+  if (s < 60) return s + 's ago';
+  if (s < 3600) {
+    const m = Math.floor(s/60);
+    const rs = s % 60;
+    return rs === 0 ? m + ' min ago' : m + ' min ' + rs + 's ago';
+  }
+  const h = Math.floor(s/3600);
+  const rm = Math.floor((s%3600)/60);
+  return rm === 0 ? h + ' hr ago' : h + ' hr ' + rm + ' min ago';
+}
+// 保留这个函数主要为了历史记录或某些特定的 Tooltip，图表 X 轴已经交给 date-fns 处理了
+function formatAxisTime(ms) {
+  const d = new Date(ms);
+  if (isNaN(d.getTime())) return '';
+  const day = d.getDate();
+  const mon = d.toLocaleString('en-US', { month: 'short' });
+  let h = d.getHours();
+  const m = d.getMinutes();
+  const sec = d.getSeconds();
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12; if (h === 0) h = 12;
+  return day + ' ' + mon + ' ' + h + ':' + String(m).padStart(2,'0') + ':' + String(sec).padStart(2,'0') + ' ' + ampm;
+}
+function gradeFromAqi(aqi) {
+  if (aqi < 50)  return 0;
+  if (aqi < 100) return 1;
+  if (aqi < 200) return 2;
+  return 3;
 }
 
-$('levels').innerHTML = NAME.map((n,i) =>
-  '<li id="lv'+i+'"><i style="background:var(--l'+i+')"></i>'+n+'<em>'+LED[i]+' LED</em></li>').join('');
-
-let due = 0, total = TEST_MS, previewing = false, step = -1, lastEntry = null, busy = false;
-
-function showReading(r, live){
-  const hero = $('hero');
-  if (live) { hero.style.setProperty('--c','var(--l'+r.grade+')'); hero.style.setProperty('--ink','var(--l'+r.grade+'-ink)'); }
-  else { hero.style.removeProperty('--c'); hero.style.removeProperty('--ink'); }
-  $('state').textContent = live ? NAME[r.grade] : 'Sensor offline';
-  $('aqi').textContent = aqiFrom(r.pm);
-  $('ug').textContent = r.pm.toFixed(1);
-  $('lpo').textContent = r.lpo.toFixed(2)+'%';
-  $('pulses').textContent = r.pulses;
-  $('raw').textContent = r.raw.toFixed(1);
-  for (let i=0;i<4;i++) $('lv'+i).className = (live && i===r.grade) ? 'on' : '';
+/* ------------------------------------------------------------------ *
+ *  Feed parsing
+ * ------------------------------------------------------------------ */
+function parseFeed(f) {
+  const t = new Date(f.created_at).getTime();
+  const aqi  = parseFloat(f.field4);
+  const pm   = parseFloat(f.field1);
+  const lpo  = parseFloat(f.field2);
+  const pul  = parseInt(f.field3, 10);
+  const rem  = parseFloat(f.field5);
+  return {
+    t: t,
+    aqi: isNaN(aqi) ? null : aqi,
+    pm: isNaN(pm) ? null : pm,
+    lpo: isNaN(lpo) ? null : lpo,
+    pulses: isNaN(pul) ? null : pul,
+    remaining: isNaN(rem) ? null : rem,
+    hasMeasurement: !isNaN(aqi) && aqi > 0
+  };
 }
-function showDisconnected(){
-  const hero = $('hero');
-  hero.style.removeProperty('--c'); hero.style.removeProperty('--ink');
+
+/* ------------------------------------------------------------------ *
+ *  Hero state
+ * ------------------------------------------------------------------ */
+let heroPhase = 'idle';   
+let heroDueAt = 0;
+let heroTotalMs = SAMPLE_MS;
+
+function setHeroMeasuring(feed) {
+  heroPhase = 'measuring';
+  heroDueAt = feed.t + (feed.remaining != null ? feed.remaining * 1000 : SAMPLE_MS);
+  heroTotalMs = SAMPLE_MS;
+
+  const grade = gradeFromAqi(feed.aqi);
+  $('hero').style.setProperty('--c', 'var(--l' + grade + ')');
+  $('hero').style.setProperty('--ink', 'var(--l' + grade + '-ink)');
+  $('state').textContent = NAME[grade];
+  $('aqi').textContent = Math.round(feed.aqi);
+  $('ug').textContent  = feed.pm != null ? feed.pm.toFixed(2) : '--';
+  $('lpo').textContent = feed.lpo != null ? feed.lpo.toFixed(4) + '%' : '--';
+  $('pulses').textContent = feed.pulses != null ? String(feed.pulses) : '--';
+  $('raw').textContent = feed.pm != null ? feed.pm.toFixed(2) : '--';
+  $('cdLabel').textContent = 'Next reading in';
+  for (let i = 0; i < 4; i++) $('lv' + i).className = (i === grade) ? 'on' : '';
+}
+function setHeroPreparing(dueAt) {
+  heroPhase = 'preparing';
+  heroDueAt = dueAt;
+  heroTotalMs = WARMUP_TOTAL_MS;
+
+  $('hero').style.removeProperty('--c');
+  $('hero').style.removeProperty('--ink');
+  $('state').textContent = 'Preparing';
+  $('aqi').textContent = '--';
+  $('ug').textContent  = '--';
+  $('lpo').textContent = '--';
+  $('pulses').textContent = '--';
+  $('raw').textContent = '--';
+  $('cdLabel').textContent = 'Preparing';
+  for (let i = 0; i < 4; i++) $('lv' + i).className = '';
+}
+function setHeroOffline() {
+  heroPhase = 'offline';
+  heroDueAt = 0;
+
+  $('hero').style.removeProperty('--c');
+  $('hero').style.removeProperty('--ink');
   $('state').textContent = 'Sensor not connected';
-  for (const id of ['aqi','ug','lpo','pulses','raw']) $(id).textContent = '--';
-  for (let i=0;i<4;i++) $('lv'+i).className = '';
-  due = 0; $('cd').textContent = '--:--'; $('bar').style.transform = 'scaleX(0)';
+  $('aqi').textContent = '--';
+  $('ug').textContent  = '--';
+  $('lpo').textContent = '--';
+  $('pulses').textContent = '--';
+  $('raw').textContent = '--';
+  $('cdLabel').textContent = 'Status';
+  $('cd').textContent = '--:--';
+  $('bar').style.transform = 'scaleX(0)';
+  for (let i = 0; i < 4; i++) $('lv' + i).className = '';
 }
 
-/* ---- Earlier readings list (newest first, up to 10) ---- */
-let hist = [];
-const G = v => Math.min(3, Math.max(0, parseInt(v) || 0));
-function ago(t){
-  const s = Math.max(0, Math.round((Date.now() - t) / 1000));
-  if (s < 60) return 'Under 1 min ago';
-  if (s < 3600) return Math.round(s/60) + ' min ago';
-  if (s < 86400) return Math.round(s/3600) + ' hr ago';
-  return new Date(t).toLocaleDateString();
+/* ------------------------------------------------------------------ *
+ *  Networking
+ * ------------------------------------------------------------------ */
+function feedUrl(path, extra) {
+  let url = 'https://api.thingspeak.com/channels/' + CHANNEL_ID + path;
+  const params = [];
+  if (extra) params.push(extra);
+  if (READ_KEY) params.push('api_key=' + encodeURIComponent(READ_KEY));
+  if (params.length) url += '?' + params.join('&');
+  return url;
 }
-function renderHist(){
-  $('histEmpty').hidden = hist.length > 0;
-  $('hist').innerHTML = hist.slice(0, 10).map(h =>
-    '<li><span class="t">'+ago(h.t)+'</span><span><b>'+aqiFrom(h.pm)+'</b> AQI</span>'+
-    '<span class="s">'+NAME[h.grade]+'<i style="background:var(--l'+h.grade+')"></i></span></li>').join('');
+async function fetchLastFeed() {
+  const res = await fetch(feedUrl('/feeds/last.json'), { cache: 'no-store' });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const data = await res.json();
+  if (!data || !data.created_at) return null;
+  return data;
 }
-setInterval(renderHist, 15000);
+async function fetchRecentFeeds(count) {
+  const res = await fetch(feedUrl('/feeds.json', 'results=' + count), { cache: 'no-store' });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const data = await res.json();
+  return (data.feeds || []).filter(x => x && x.created_at);
+}
+async function fetchAllFeeds() {
+  const res = await fetch(feedUrl('/feeds.json', 'results=' + FEED_RESULTS), { cache: 'no-store' });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const data = await res.json();
+  return (data.feeds || []).filter(x => x && x.created_at);
+}
 
-/* ---- Live readings from ThingSpeak ---- */
-async function load(){
-  if (!CHANNEL_ID || previewing || busy) return;
-  busy = true;
+/* ------------------------------------------------------------------ *
+ *  Live refresh
+ * ------------------------------------------------------------------ */
+let busyLive = false;
+let lastZeroRefresh = 0;
+
+async function refreshLive() {
+  if (busyLive) return;
+  busyLive = true;
   try {
-    const url = 'https://api.thingspeak.com/channels/'+CHANNEL_ID+'/feeds.json?results=11'+(READ_KEY ? '&api_key='+READ_KEY : '');
-    const res = await fetch(url, {cache:'no-store'});
-    if (!res.ok) throw new Error('HTTP '+res.status);
-    const feeds = ((await res.json()).feeds || []).filter(x => x.created_at)
-      .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-    if (!feeds.length) {
-      $('msg').textContent = 'The sensor has not sent any readings yet.';
-      due = Date.now() + 15000; total = 15000; busy = false; return;
+    const feed = await fetchLastFeed();
+    if (!feed) {
+      setHeroOffline();
+      $('msg').textContent = 'Waiting for the sensor to connect.';
+      busyLive = false;
+      return;
     }
-    const f = feeds[feeds.length - 1];
-    
-    hist = feeds.slice(0, -1).reverse().map(x => ({
-      t: new Date(x.created_at).getTime(), 
-      pm: parseFloat(x.field1) || 0, 
-      grade: G(x.field4)
-    }));
-    renderHist();
-    
-    const r = {
-      pm: parseFloat(f.field1) || 0,        
-      raw: parseFloat(f.field1) || 0,       
-      lpo: parseFloat(f.field2) || 0,       
-      pulses: parseInt(f.field3) || 0,      
-      grade: Math.min(3, Math.max(0, parseInt(f.field4) || 0)) 
-    };
-    
-    const when = new Date(f.created_at), age = Date.now() - when.getTime();
-    if (age > OFFLINE_MS) {
-      showReading(r, false);
-      $('msg').textContent = 'No new reading since '+when.toLocaleString()+'. Showing the last one. Check that the sensor is powered and on WiFi.';
-      due = Date.now() + 15000; total = 15000;
+    const parsed = parseFeed(feed);
+    const age = Date.now() - parsed.t;
+
+    if (isNaN(parsed.t) || age > OFFLINE_MS) {
+      setHeroOffline();
+      $('msg').textContent = 'No recent reading. The sensor may be offline.';
+    } else if (parsed.hasMeasurement) {
+      setHeroMeasuring(parsed);
+      $('msg').textContent = 'Live from the sensor. Last reading at ' + formatClock(feed.created_at) + '.';
     } else {
-      showReading(r, true);
-      $('msg').textContent = 'Live from the sensor. Last reading at '+when.toLocaleTimeString()+'.';
-      if (f.entry_id !== lastEntry && age >= 0 && age < TEST_MS) { total = TEST_MS; due = Date.now() + (TEST_MS - age) + 2000; }
-      else { total = 5000; due = Date.now() + 5000; }
-      lastEntry = f.entry_id;
+      const dueAt = parsed.t + (parsed.remaining != null ? parsed.remaining * 1000 : WARMUP_TOTAL_MS);
+      setHeroPreparing(dueAt);
+      $('msg').textContent = 'The sensor is warming up. Readings will appear shortly.';
     }
   } catch (e) {
-    $('msg').textContent = "Can't reach the readings service right now. Check your internet connection. Retrying every 15 seconds.";
-    due = Date.now() + 15000; total = 15000;
+    setHeroOffline();
+    $('msg').textContent = 'Cannot reach the readings service. Retrying shortly.';
   }
-  busy = false;
+  busyLive = false;
 }
 
-/* ---- Preview with sample readings ---- */
-const SAMPLE = [
-  {grade:0,pm:6.2,raw:5.8,lpo:0.05,pulses:7},
-  {grade:1,pm:22.4,raw:24.1,lpo:0.14,pulses:19},
-  {grade:2,pm:46.8,raw:49.5,lpo:0.27,pulses:41},
-  {grade:3,pm:88.3,raw:93.0,lpo:0.45,pulses:73}
-];
-function nextSample(){
-  if (step >= 0) { hist.unshift({t: Date.now(), pm: SAMPLE[step].pm, grade: SAMPLE[step].grade}); }
+/* ------------------------------------------------------------------ *
+ *  History
+ * ------------------------------------------------------------------ */
+let hist = [];
+
+function updateHistoryFromFeeds(feeds) {
+  const items = [];
+  for (const f of feeds) {
+    const aqi = parseFloat(f.field4);
+    if (isNaN(aqi) || aqi <= 0) continue;
+    const t = new Date(f.created_at).getTime();
+    if (isNaN(t)) continue;
+    items.push({ t: t, aqi: aqi, grade: gradeFromAqi(aqi) });
+  }
+  items.sort((a, b) => b.t - a.t);
+  hist = items;
   renderHist();
-  step = (step+1)%4; showReading(SAMPLE[step], true); total = TEST_MS; due = Date.now() + TEST_MS;
 }
-$('preview').onclick = () => {
-  previewing = !previewing;
-  $('tag').hidden = !previewing;
-  $('preview').textContent = previewing ? 'Stop preview' : 'Preview sample readings';
-  if (previewing) {
-    $('msg').textContent = 'These are sample readings, not real air data. The level changes every 30 seconds so you can see all four colours.';
-    const n = Date.now();
-    hist = [{t:n-60000,pm:22.4,grade:1},{t:n-180000,pm:46.8,grade:2},{t:n-420000,pm:88.3,grade:3},{t:n-900000,pm:6.2,grade:0}];
-    step = -1; nextSample();
-  } else {
-    hist = []; renderHist();
-    showDisconnected(); $('msg').textContent = IDLE_MSG; lastEntry = null; load();
-  }
-};
+function renderHist() {
+  $('histEmpty').hidden = hist.length > 0;
+  $('hist').innerHTML = hist.slice(0, 10).map(h => {
+    const a = formatAgo(Date.now() - h.t);
+    return '<li><span class="t">' + a + '</span>' +
+      '<span><b>' + Math.round(h.aqi) + '</b> AQI</span>' +
+      '<span class="s">' + NAME[h.grade] +
+      '<i style="background:var(--l' + h.grade + ')"></i></span></li>';
+  }).join('');
+}
 
+async function refreshHistory() {
+  try {
+    const feeds = await fetchRecentFeeds(200);
+    updateHistoryFromFeeds(feeds);
+  } catch (e) { /* keep previous */ }
+}
+
+/* ------------------------------------------------------------------ *
+ *  Charts
+ * ------------------------------------------------------------------ */
+const charts = {};
+
+function chartOptions() {
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: false,
+    interaction: { mode: 'nearest', intersect: false },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          title: items => formatAxisTime(items[0].parsed.x),
+          label: ctx => ctx.parsed.y == null ? 'offline' : ctx.parsed.y.toFixed(2)
+        }
+      }
+    },
+    scales: {
+      x: {
+        type: 'time', // 关键修改：使用时间轴
+        time: {
+          tooltipFormat: 'd MMM h:mm:ss a',
+          displayFormats: {
+            millisecond: 'HH:mm:ss',
+            second: 'HH:mm:ss',
+            minute: 'HH:mm',
+            hour: 'HH:mm',
+            day: 'd MMM'
+          }
+        },
+        grid: { display: false },
+        ticks: {
+          maxTicksLimit: 4,
+          autoSkip: true,
+          maxRotation: 0
+        }
+      },
+      y: {
+        beginAtZero: true,
+        grid: { color: 'rgba(128,128,128,.22)' },
+        ticks: { maxTicksLimit: 5 }
+      }
+    }
+  };
+}
+
+function makeChart(canvasId, color, fill) {
+  return new Chart($(canvasId), {
+    type: 'line',
+    data: {
+      datasets: [{
+        data: [],
+        borderColor: color,
+        backgroundColor: fill,
+        borderWidth: 2,
+        pointRadius: 2, // 改为 2，防止孤立点完全不可见
+        pointHoverRadius: 4,
+        tension: 0.25,
+        spanGaps: false,
+        fill: false
+      }]
+    },
+    options: chartOptions()
+  });
+}
+function initCharts() {
+  charts.aqi    = makeChart('chartAqi',    '#1e6bff', 'rgba(30,107,255,.12)');
+  charts.pm25   = makeChart('chartPm25',   '#22c55e', 'rgba(34,197,94,.12)');
+  charts.lpo    = makeChart('chartLpo',    '#ffa000', 'rgba(255,160,0,.12)');
+  charts.pulses = makeChart('chartPulses', '#ff2d2d', 'rgba(255,45,45,.12)');
+}
+
+function bucketizeFeeds(feeds, intervalMs) {
+  const buckets = new Map();
+  for (const f of feeds) {
+    const t = new Date(f.created_at).getTime();
+    if (isNaN(t)) continue;
+    const key = Math.floor(t / intervalMs);
+    let cur = buckets.get(key);
+    if (!cur) {
+      cur = { key: key, firstT: t, lastT: t, feed: f };
+      buckets.set(key, cur);
+    } else {
+      if (t < cur.firstT) cur.firstT = t;
+      if (t > cur.lastT) { cur.lastT = t; cur.feed = f; }
+    }
+  }
+  return Array.from(buckets.values()).sort((a, b) => a.key - b.key);
+}
+
+function seriesToPoints(buckets, key, gapMs) {
+  const out = [];
+  let prev = null;
+  for (const b of buckets) {
+    if (prev !== null && (b.firstT - prev.lastT) > gapMs) {
+      const midX = (prev.lastT + b.firstT) / 2;
+      out.push({ x: midX, y: null });
+    }
+    out.push({ x: b.lastT, y: b[key] });
+    prev = b;
+  }
+  return out;
+}
+
+function updateCharts(feeds) {
+  if (!charts.aqi) initCharts();
+
+  // 关键修改：修复连坐过滤，只要有一个字段有效即可进入分桶
+  const valid = (feeds || []).filter(f => {
+    const pm  = parseFloat(f.field1);
+    const lpo = parseFloat(f.field2);
+    const pul = parseInt(f.field3, 10);
+    const aqi = parseFloat(f.field4);
+    return !isNaN(pm) || !isNaN(lpo) || !isNaN(pul) || (!isNaN(aqi) && aqi > 0);
+  });
+
+  const buckets = bucketizeFeeds(valid, HIST_BUCKET_MS);
+  
+  const series = buckets.map(b => {
+    const aqi = parseFloat(b.feed.field4);
+    const pm  = parseFloat(b.feed.field1);
+    const lpo = parseFloat(b.feed.field2);
+    const pul = parseInt(b.feed.field3, 10);
+    
+    return {
+      firstT: b.firstT,
+      lastT:  b.lastT,
+      aqi: (isNaN(aqi) || aqi <= 0) ? null : aqi, // AQI 为 0 视为 null 避免画到 0 轴
+      pm: isNaN(pm) ? null : pm,
+      lpo: isNaN(lpo) ? null : lpo,
+      pulses: isNaN(pul) ? null : pul
+    };
+  });
+
+  charts.aqi.data.datasets[0].data    = seriesToPoints(series, 'aqi',    GAP_MS);
+  charts.pm25.data.datasets[0].data   = seriesToPoints(series, 'pm',     GAP_MS);
+  charts.lpo.data.datasets[0].data    = seriesToPoints(series, 'lpo',    GAP_MS);
+  charts.pulses.data.datasets[0].data = seriesToPoints(series, 'pulses', GAP_MS);
+
+  charts.aqi.update();
+  charts.pm25.update();
+  charts.lpo.update();
+  charts.pulses.update();
+}
+async function refreshCharts() {
+  try {
+    const feeds = await fetchAllFeeds();
+    updateCharts(feeds);
+  } catch (e) { /* keep previous */ }
+}
+
+/* ------------------------------------------------------------------ *
+ *  Preview overlay
+ * ------------------------------------------------------------------ */
+function openPreview() {
+  $('previewOverlay').hidden = false;
+  $('previewChoice').hidden = false;
+  $('previewHero').hidden = true;
+}
+function closePreview() {
+  $('previewOverlay').hidden = true;
+}
+function showPreview(grade) {
+  const ranges = [[10, 50], [50, 100], [100, 200], [200, 400]];
+  const [lo, hi] = ranges[grade];
+  const aqi = Math.round(lo + Math.random() * (hi - lo));
+
+  let pm;
+  if (aqi <= 50)       pm = aqi;
+  else if (aqi <= 140) pm = 50 + (aqi - 50) / 1.8;
+  else if (aqi <= 300) pm = 100 + (aqi - 140) / 1.6;
+  else                 pm = 200 + (aqi - 300) / 0.67;
+  pm = Math.max(0, pm);
+
+  $('previewHero').style.setProperty('--c', 'var(--l' + grade + ')');
+  $('previewHero').style.setProperty('--ink', 'var(--l' + grade + '-ink)');
+  $('previewState').textContent = NAME[grade];
+  $('previewAqi').textContent = aqi;
+  $('previewPm').textContent = pm.toFixed(2);
+
+  $('previewChoice').hidden = true;
+  $('previewHero').hidden = false;
+}
+
+/* ------------------------------------------------------------------ *
+ *  Bootstrap
+ * ------------------------------------------------------------------ */
+$('levels').innerHTML = NAME.map((n, i) =>
+  '<li id="lv' + i + '"><i style="background:var(--l' + i + ')"></i>' + n +
+  '<em>' + LED[i] + ' LED</em></li>'
+).join('');
+
+initCharts();
+
+$('preview').onclick = openPreview;
+$('previewCancel').onclick = closePreview;
+$('previewClose').onclick = closePreview;
+$('previewOverlay').addEventListener('click', (e) => {
+  if (e.target === $('previewOverlay')) closePreview();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closePreview();
+});
+document.querySelectorAll('#previewChoice [data-grade]').forEach(btn => {
+  btn.onclick = () => showPreview(parseInt(btn.dataset.grade, 10));
+});
+
+/* Current clock (HH:MM:SS) */
+function tickNow() {
+  const d = new Date();
+  $('now').textContent = String(d.getHours()).padStart(2,'0') + ':' +
+                         String(d.getMinutes()).padStart(2,'0') + ':' +
+                         String(d.getSeconds()).padStart(2,'0');
+}
+setInterval(tickNow, 1000);
+tickNow();
+
+/* Hero countdown ticker */
 setInterval(() => {
-  if (!due) return;
-  const left = Math.max(0, due - Date.now()), s = Math.ceil(left/1000);
-  $('cd').textContent = String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
-  $('bar').style.transform = 'scaleX('+Math.min(1,left/total)+')';
-  if (left === 0) { if (previewing) nextSample(); else load(); }
+  if (heroPhase !== 'measuring' && heroPhase !== 'preparing') return;
+  const left = Math.max(0, heroDueAt - Date.now());
+  $('cd').textContent = formatCountdown(left);
+  $('bar').style.transform = 'scaleX(' + Math.min(1, left / heroTotalMs) + ')';
+  if (left <= 0 && !busyLive && Date.now() - lastZeroRefresh > 5000) {
+    lastZeroRefresh = Date.now();
+    refreshLive();
+  }
 }, 250);
 
-load();
+/* History "ago" labels update every second */
+setInterval(renderHist, 1000);
+
+/* Live status poll */
+refreshLive();
+setInterval(refreshLive, LIVE_POLL_MS);
+
+/* History poll (matches the 30s sample cadence) */
+refreshHistory();
+setInterval(refreshHistory, HIST_POLL_MS);
+
+/* Charts poll (5-minute buckets, refreshed less often) */
+refreshCharts();
+setInterval(refreshCharts, CHART_POLL_MS);
 </script>
 </body></html>
